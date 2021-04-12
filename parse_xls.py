@@ -1,5 +1,13 @@
 from openpyxl import load_workbook
 import psycopg2
+from dotenv import load_dotenv
+from dotenv import dotenv_values
+
+load_dotenv()
+
+config = dotenv_values(".env")
+
+print('Put the Exel file in root directory, and enter it`s name with document type. For example: katotth.xlsx')
 
 obj_decode = {
     'O': 'область',
@@ -32,10 +40,10 @@ obj_to_column = {
 reg, distr, hrom, munic, distr_city, div_num, div_type, div_name, div_full_name = 0, 0, 0, 0, 0, 0, '', '', ''
 
 conn = psycopg2.connect(
-    host="localhost",
-    database="osm",
-    user="osm",
-    password="osm")
+    host=config['PGSQL_HOST'],
+    database=config['PGSQL_DB_NAME'],
+    user=config['PGSQL_DB_USER'],
+    password='PGSQL_DB_PASSWD')
 
 create_table = """create table katottg( 
                 id SERIAL PRIMARY KEY, 
@@ -49,6 +57,7 @@ create_table = """create table katottg(
                 div_name VARCHAR(50), 
                 div_full_name VARCHAR(100) 
                 );"""
+
 drop_table = """DROP TABLE katottg;"""
 
 
@@ -74,58 +83,52 @@ except psycopg2.errors.DuplicateTable:
 
 conn.commit()
 
+with conn:
+    with conn.cursor() as curs:
 
-with conn.cursor() as curs:
+        # for cell in sheet[f"{upper_left.upper()}:{lower_right.upper()}"]:  # A4 G31761
+        for cell in sheet[upper_left:lower_right]:
+            div_type, div_name = cell[5].value, cell[6].value
+            if div_type in ['O', 'P', 'H', 'B']:
+                div_full_name = f"{div_name} {obj_decode[div_type]}"
+            else:
+                div_full_name = f"{obj_decode[div_type]} {div_name}"
 
-    # for cell in sheet[f"{upper_left.upper()}:{lower_right.upper()}"]:  # A4 G31761
-    for cell in sheet['A4':'G31761']:  # TODO: удалить
-        div_type, div_name = cell[5].value, cell[6].value
-        if div_type in ['O', 'P', 'H', 'B']:
-            div_full_name = f"{div_name} {obj_decode[div_type]}"
-        else:
-            div_full_name = f"{obj_decode[div_type]} {div_name}"
+            atu_num = cell[obj_to_column[div_type]].value
 
-        atu_num = cell[obj_to_column[div_type]].value
+            reg = int(atu_num[2:4])
+            distr = int(atu_num[4:6])
+            hrom = int(atu_num[6:9])
+            munic = int(atu_num[9:12])
+            distr_city = int(atu_num[12:14])
+            div_num = int(atu_num[-5:])
 
-        reg = int(atu_num[2:4])
-        distr = int(atu_num[4:6])
-        hrom = int(atu_num[6:9])
-        munic = int(atu_num[9:12])
-        distr_city = int(atu_num[12:14])
-        div_num = int(atu_num[-5:])
-
-        # If object of administrative division is region or city with special status
-        if div_type in ['O', 'K']:
-            curs.execute('INSERT INTO katottg(reg, div_num, div_type, div_name, div_full_name) '
-                         'VALUES(%s, %s, %s, %s, %s)', (reg, div_num, obj_decode[div_type], div_name, div_full_name))
-            # print(f"{reg} - {distr} - {hrom} - {munic} - {distr_city} : {div_num} - {div_full_name}")
-        # If object of administrative division is district
-        elif div_type == 'P':
-            curs.execute('''INSERT INTO katottg(reg, distr, div_num, div_type, div_name, div_full_name) 
-                                        VALUES(%s, %s, %s, %s, %s, %s)''',
-                         (reg, distr, div_num, obj_decode[div_type], div_name, div_full_name))
-            # print(f"{reg} - {distr} - {hrom} - {munic} - {distr_city} : {div_num} - {div_full_name}")
-        # If object of administrative division is territorial hromada
-        elif div_type == 'H':
-            curs.execute('''INSERT INTO katottg(reg, distr, hrom, div_num, div_type, div_name, div_full_name) 
-                                        VALUES(%s, %s, %s, %s, %s, %s, %s)''',
-                         (reg, distr, hrom, div_num, obj_decode[div_type], div_name, div_full_name))
-            # print(f"{reg} - {distr} - {hrom} - {munic} - {distr_city} : {div_num} - {div_full_name}")
-        # If object of administrative division is one of the city or or village or special status
-        elif div_type in ['M', 'T', 'C', 'X']:
-            curs.execute('''INSERT INTO katottg(reg, distr, hrom, munic, div_num, div_type, div_name, div_full_name) 
-                                        VALUES(%s, %s, %s, %s, %s, %s, %s, %s)''',
-                         (reg, distr, hrom, munic, div_num, obj_decode[div_type], div_name, div_full_name))
-            # print(f"{reg} - {distr} - {hrom} - {munic} - {distr_city} : {div_num} - {div_full_name}")
-        # If object of administrative division is district in city
-        elif div_type == 'B':
-            curs.execute('''INSERT INTO katottg(reg, distr, hrom, munic, distr_city, div_num, 
-                                                div_type, div_name, div_full_name) 
-                            VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                         (reg, distr, hrom, munic, distr_city, div_num, obj_decode[div_type], div_name, div_full_name))
-            # print(f"{reg} - {distr} - {hrom} - {munic} - {distr_city} : {div_num} - {div_full_name}")
-
-conn.commit()
+            # If object of administrative division is region or city with special status
+            if div_type in ['O', 'K']:
+                curs.execute('INSERT INTO katottg(reg, div_num, div_type, div_name, div_full_name) '
+                             'VALUES(%s, %s, %s, %s, %s)', (reg, div_num, obj_decode[div_type], div_name, div_full_name))
+            # If object of administrative division is district
+            elif div_type == 'P':
+                curs.execute('''INSERT INTO katottg(reg, distr, div_num, div_type, div_name, div_full_name) 
+                                            VALUES(%s, %s, %s, %s, %s, %s)''',
+                             (reg, distr, div_num, obj_decode[div_type], div_name, div_full_name))
+            # If object of administrative division is territorial hromada
+            elif div_type == 'H':
+                curs.execute('''INSERT INTO katottg(reg, distr, hrom, div_num, div_type, div_name, div_full_name) 
+                                            VALUES(%s, %s, %s, %s, %s, %s, %s)''',
+                             (reg, distr, hrom, div_num, obj_decode[div_type], div_name, div_full_name))
+            # If object of administrative division is one of the city or or village or special status
+            elif div_type in ['M', 'T', 'C', 'X']:
+                curs.execute('''INSERT INTO katottg(reg, distr, hrom, munic, div_num, div_type, div_name, div_full_name) 
+                                            VALUES(%s, %s, %s, %s, %s, %s, %s, %s)''',
+                             (reg, distr, hrom, munic, div_num, obj_decode[div_type], div_name, div_full_name))
+            # If object of administrative division is district in city
+            elif div_type == 'B':
+                curs.execute('''INSERT INTO katottg(reg, distr, hrom, munic, distr_city, div_num, 
+                                                    div_type, div_name, div_full_name) 
+                                VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s)''',
+                             (reg, distr, hrom, munic, distr_city, div_num, obj_decode[div_type], div_name, div_full_name))
+    conn.commit()
 
 workbook.close()
 
