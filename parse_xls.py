@@ -26,7 +26,7 @@ obj_to_column = {
 
 # variables for database: reg - region, dist - district, hrom - hromada, munic - municipalities,
 #  div_num - unique number of administrative division object, div_type - type of division object
-# respectively to katotth, div_name - name of administrative division object,
+# respectively to katottg, div_name - name of administrative division object,
 # div_full_name - humanised div_name + div_type
 
 reg, distr, hrom, munic, distr_city, div_num, div_type, div_name, div_full_name = 0, 0, 0, 0, 0, 0, '', '', ''
@@ -37,7 +37,7 @@ conn = psycopg2.connect(
     user="osm",
     password="osm")
 
-create_table = """create table katotth( 
+create_table = """create table katottg( 
                 id SERIAL PRIMARY KEY, 
                 reg SMALLINT, 
                 distr SMALLINT, 
@@ -49,7 +49,7 @@ create_table = """create table katotth(
                 div_name VARCHAR(50), 
                 div_full_name VARCHAR(100) 
                 );"""
-drop_table = """DROP TABLE katotth;"""
+drop_table = """DROP TABLE katottg;"""
 
 
 workbook = load_workbook("katotth_orig.xlsx")
@@ -96,30 +96,30 @@ with conn.cursor() as curs:
 
         # If object of administrative division is region or city with special status
         if div_type in ['O', 'K']:
-            curs.execute('INSERT INTO katotth(reg, div_num, div_type, div_name, div_full_name) '
+            curs.execute('INSERT INTO katottg(reg, div_num, div_type, div_name, div_full_name) '
                          'VALUES(%s, %s, %s, %s, %s)', (reg, div_num, obj_decode[div_type], div_name, div_full_name))
             # print(f"{reg} - {distr} - {hrom} - {munic} - {distr_city} : {div_num} - {div_full_name}")
         # If object of administrative division is district
         elif div_type == 'P':
-            curs.execute('''INSERT INTO katotth(reg, distr, div_num, div_type, div_name, div_full_name) 
+            curs.execute('''INSERT INTO katottg(reg, distr, div_num, div_type, div_name, div_full_name) 
                                         VALUES(%s, %s, %s, %s, %s, %s)''',
                          (reg, distr, div_num, obj_decode[div_type], div_name, div_full_name))
             # print(f"{reg} - {distr} - {hrom} - {munic} - {distr_city} : {div_num} - {div_full_name}")
         # If object of administrative division is territorial hromada
         elif div_type == 'H':
-            curs.execute('''INSERT INTO katotth(reg, distr, hrom, div_num, div_type, div_name, div_full_name) 
+            curs.execute('''INSERT INTO katottg(reg, distr, hrom, div_num, div_type, div_name, div_full_name) 
                                         VALUES(%s, %s, %s, %s, %s, %s, %s)''',
                          (reg, distr, hrom, div_num, obj_decode[div_type], div_name, div_full_name))
             # print(f"{reg} - {distr} - {hrom} - {munic} - {distr_city} : {div_num} - {div_full_name}")
         # If object of administrative division is one of the city or or village or special status
         elif div_type in ['M', 'T', 'C', 'X']:
-            curs.execute('''INSERT INTO katotth(reg, distr, hrom, munic, div_num, div_type, div_name, div_full_name) 
+            curs.execute('''INSERT INTO katottg(reg, distr, hrom, munic, div_num, div_type, div_name, div_full_name) 
                                         VALUES(%s, %s, %s, %s, %s, %s, %s, %s)''',
                          (reg, distr, hrom, munic, div_num, obj_decode[div_type], div_name, div_full_name))
             # print(f"{reg} - {distr} - {hrom} - {munic} - {distr_city} : {div_num} - {div_full_name}")
         # If object of administrative division is district in city
         elif div_type == 'B':
-            curs.execute('''INSERT INTO katotth(reg, distr, hrom, munic, distr_city, div_num, 
+            curs.execute('''INSERT INTO katottg(reg, distr, hrom, munic, distr_city, div_num, 
                                                 div_type, div_name, div_full_name) 
                             VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s)''',
                          (reg, distr, hrom, munic, distr_city, div_num, obj_decode[div_type], div_name, div_full_name))
