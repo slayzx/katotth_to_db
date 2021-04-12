@@ -1,0 +1,3 @@
+openpyxl
+psycopg2
+python-dotenv
