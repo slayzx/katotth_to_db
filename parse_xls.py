@@ -134,6 +134,3 @@ workbook.close()
 
 '''Columns: A - region(reg), B - district(dist), C - hromada(hrom), D - communities(comm), 
 E - districts in cities(dist_city), F - object category(div_type), G - name'''
-
-# [cell.value for cell in sheet['A']]  пробегает все значения в колонке А
-# [cell[6].value for cell in sheet.rows]  пробегает по значениям ячеек конкретной колонки
