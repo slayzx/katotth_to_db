@@ -33,11 +33,11 @@ obj_to_column = {
 }
 
 # variables for database: reg - region, dist - district, hrom - hromada, munic - municipalities,
-#  div_num - unique number of administrative division object, div_type - type of division object
-# respectively to katottg, div_name - name of administrative division object,
-# div_full_name - humanised div_name + div_type
+#  division_name - unique number of administrative division object, div_type - type of division object
+# respectively to katotth, division_name - name of administrative division object,
+# division_full_name - humanised division_name + div_type
 
-reg, distr, hrom, munic, distr_city, div_num, div_type, div_name, div_full_name = 0, 0, 0, 0, 0, 0, '', '', ''
+region, district, hromada, municipal, district_city, division_num, division_type, division_name, division_full_name = 0, 0, 0, 0, 0, 0, '', '', ''
 
 conn = psycopg2.connect(
     host=config['PGSQL_HOST'],
@@ -45,21 +45,20 @@ conn = psycopg2.connect(
     user=config['PGSQL_DB_USER'],
     password='PGSQL_DB_PASSWD')
 
-create_table = """create table katottg( 
+create_table = """create table katotth( 
                 id SERIAL PRIMARY KEY, 
-                reg SMALLINT, 
-                distr SMALLINT, 
-                hrom SMALLINT, 
-                munic SMALLINT, 
-                distr_city SMALLINT, 
-                div_num INT, 
-                div_type VARCHAR(50), 
-                div_name VARCHAR(50), 
-                div_full_name VARCHAR(100) 
+                region SMALLINT, 
+                district SMALLINT, 
+                hromada SMALLINT, 
+                municipal SMALLINT, 
+                district_city SMALLINT, 
+                division_num INT, 
+                division_type VARCHAR(50), 
+                division_name VARCHAR(50), 
+                division_full_name VARCHAR(100) 
                 );"""
 
-drop_table = """DROP TABLE katottg;"""
-
+drop_table = """DROP TABLE katotth;"""
 
 workbook = load_workbook("katotth_orig.xlsx")
 
@@ -80,7 +79,6 @@ except psycopg2.errors.DuplicateTable:
             curs.execute(drop_table)
             curs.execute(create_table)
 
-
 conn.commit()
 
 with conn:
@@ -88,52 +86,54 @@ with conn:
 
         # for cell in sheet[f"{upper_left.upper()}:{lower_right.upper()}"]:  # A4 G31761
         for cell in sheet[upper_left:lower_right]:
-            div_type, div_name = cell[5].value, cell[6].value
-            if div_type in ['O', 'P', 'H', 'B']:
-                div_full_name = f"{div_name} {obj_decode[div_type]}"
+            division_type, division_name = cell[5].value, cell[6].value
+            if division_type in ['O', 'P', 'H', 'B']:
+                division_full_name = f"{division_name} {obj_decode[division_type]}"
             else:
-                div_full_name = f"{obj_decode[div_type]} {div_name}"
+                division_full_name = f"{obj_decode[division_type]} {division_name}"
 
-            atu_num = cell[obj_to_column[div_type]].value
+            atu_num = cell[obj_to_column[division_type]].value
 
-            reg = int(atu_num[2:4])
-            distr = int(atu_num[4:6])
-            hrom = int(atu_num[6:9])
-            munic = int(atu_num[9:12])
-            distr_city = int(atu_num[12:14])
-            div_num = int(atu_num[-5:])
+            region = int(atu_num[2:4])
+            district = int(atu_num[4:6])
+            hromada = int(atu_num[6:9])
+            municipal = int(atu_num[9:12])
+            district_city = int(atu_num[12:14])
+            division_num = int(atu_num[-5:])
 
             # If object of administrative division is region or city with special status
-            if div_type in ['O', 'K']:
-                curs.execute('INSERT INTO katottg(reg, div_num, div_type, div_name, div_full_name) '
-                             'VALUES(%s, %s, %s, %s, %s)', (reg, div_num, obj_decode[div_type], div_name, div_full_name))
+            if division_type in ['O', 'K']:
+                curs.execute('INSERT INTO katotth(region, division_num, division_type, division_name, division_full_name) '
+                             'VALUES(%s, %s, %s, %s, %s)',
+                             (region, division_num, obj_decode[division_type], division_name, division_full_name))
             # If object of administrative division is district
-            elif div_type == 'P':
-                curs.execute('''INSERT INTO katottg(reg, distr, div_num, div_type, div_name, div_full_name) 
-                                            VALUES(%s, %s, %s, %s, %s, %s)''',
-                             (reg, distr, div_num, obj_decode[div_type], div_name, div_full_name))
+            elif division_type == 'P':
+                curs.execute('''INSERT INTO katotth(region, district, division_num, division_type, division_name, division_full_name) 
+                                VALUES(%s, %s, %s, %s, %s, %s)''',
+                             (region, district, division_num, obj_decode[division_type], division_name, division_full_name))
             # If object of administrative division is territorial hromada
-            elif div_type == 'H':
-                curs.execute('''INSERT INTO katottg(reg, distr, hrom, div_num, div_type, div_name, div_full_name) 
-                                            VALUES(%s, %s, %s, %s, %s, %s, %s)''',
-                             (reg, distr, hrom, div_num, obj_decode[div_type], div_name, div_full_name))
+            elif division_type == 'H':
+                curs.execute('''INSERT INTO katotth(region, district, hromada, division_num, division_type, division_name, division_full_name) 
+                                VALUES(%s, %s, %s, %s, %s, %s, %s)''',
+                             (region, district, hromada, division_num, obj_decode[division_type], division_name, division_full_name))
             # If object of administrative division is one of the city or or village or special status
-            elif div_type in ['M', 'T', 'C', 'X']:
-                curs.execute('''INSERT INTO katottg(reg, distr, hrom, munic, div_num, div_type, div_name, div_full_name) 
-                                            VALUES(%s, %s, %s, %s, %s, %s, %s, %s)''',
-                             (reg, distr, hrom, munic, div_num, obj_decode[div_type], div_name, div_full_name))
+            elif division_type in ['M', 'T', 'C', 'X']:
+                curs.execute('''INSERT INTO katotth(region, district, hromada, municipal, division_num, division_type, division_name, division_full_name) 
+                                VALUES(%s, %s, %s, %s, %s, %s, %s, %s)''',
+                             (region, district, hromada, municipal, division_num, obj_decode[division_type], division_name, division_full_name))
             # If object of administrative division is district in city
-            elif div_type == 'B':
-                curs.execute('''INSERT INTO katottg(reg, distr, hrom, munic, distr_city, div_num, 
-                                                    div_type, div_name, div_full_name) 
+            elif division_type == 'B':
+                curs.execute('''INSERT INTO katotth(region, district, hromada, municipal, district_city, division_num, 
+                                                    division_type, division_name, division_full_name) 
                                 VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                             (reg, distr, hrom, munic, distr_city, div_num, obj_decode[div_type], div_name, div_full_name))
+                             (region, district, hromada, municipal, district_city, division_num, obj_decode[division_type], division_name,
+                              division_full_name))
     conn.commit()
 
 workbook.close()
 
-'''Columns: A - region(reg), B - district(dist), C - hromada(hrom), D - communities(comm), 
-E - districts in cities(dist_city), F - object category(div_type), G - name'''
+'''Columns: A - region, B - district, C - hromada, D - communities, 
+E - districts in cities, F - object category, G - name'''
 
 # [cell.value for cell in sheet['A']]  пробегает все значения в колонке А
 # [cell[6].value for cell in sheet.rows]  пробегает по значениям ячеек конкретной колонки
