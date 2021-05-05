@@ -3,7 +3,6 @@ import psycopg2
 from dotenv import load_dotenv
 from dotenv import dotenv_values
 import re
-from icecream import ic
 
 load_dotenv()
 
