@@ -74,8 +74,8 @@ print('Put the Exel file in root directory, and enter it`s name with document ty
 sheet = workbook.active
 print("Specify the name (in uppercase) of the upper left and lower right cells of the table without extra rows, "
       "only data.")
-# upper_left = input('upper left: ')
-# lower_right = input('lower right: ')
+upper_left = input('upper left: ')
+lower_right = input('lower right: ')
 
 try:
     with conn:
@@ -93,9 +93,8 @@ conn.commit()
 with conn:
     with conn.cursor() as curs:
 
-        # for cell in sheet[f"{upper_left.upper()}:{lower_right.upper()}"]:  # A4 G31761
-        # for cell in sheet[upper_left:lower_right]:
-        for cell in sheet['A4':'G31761']:
+        # A4 G31761
+        for cell in sheet[upper_left:lower_right]:
             division_type, division_name = cell[5].value, cell[6].value
             if division_type == 'O':
                 if crimea.search(division_name):
@@ -172,6 +171,3 @@ workbook.close()
 
 '''Columns: A - region, B - district, C - hromada, D - communities, 
 E - districts in cities, F - object category, G - name'''
-
-# [cell.value for cell in sheet['A']]  пробегает все значения в колонке А
-# [cell[6].value for cell in sheet.rows]  пробегает по значениям ячеек конкретной колонки
