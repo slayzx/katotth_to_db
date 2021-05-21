@@ -12,7 +12,7 @@ crimea = re.compile('республіка крим', re.I)
 
 obj_decode = {
     'O': 'область',
-    'K': 'місто',  # city with special status
+    'K': 'місто з особливим статусом',  # city with special status
     'P': 'район',
     'H': 'територіальна громада',
     'M': 'місто',
@@ -68,7 +68,7 @@ create_table = """create table katotth(
 
 drop_table = """DROP TABLE katotth;"""
 
-workbook = load_workbook("katotth_orig.xlsx")
+workbook = load_workbook("katotth.xlsx")
 
 print('Put the Exel file in root directory, and enter it`s name with document type. For example: katotth.xlsx')
 sheet = workbook.active
@@ -95,13 +95,15 @@ with conn:
 
         # A4 G31761
         for cell in sheet[upper_left:lower_right]:
-            division_type, division_name = cell[5].value, cell[6].value
-            if division_type == 'O':
+            division_type, division_name = cell[5].value.strip(), cell[6].value.strip()
+            if division_type == 'O':  # region
                 if crimea.search(division_name):
                     division_full_name = division_name
                 else:
                     division_full_name = f"{division_name} {obj_decode[division_type]}"
-            elif division_type in ['P', 'H', 'B']:
+            elif division_type in ['P', 'H']:  # district and hromada
+                division_full_name = f"{division_name} {obj_decode[division_type]}"
+            elif division_type == 'B':  # district in city
                 division_full_name = f"{division_name} {obj_decode[division_type]}"
             else:
                 division_full_name = f"{obj_decode[division_type]} {division_name}"
@@ -118,7 +120,17 @@ with conn:
             division_num = int(atu_num[-5:])
 
             # If object of administrative division is region or city with special status
-            if division_type in ['O', 'K']:
+            if division_type == 'O':
+                if past_region != region:
+                    region_name = division_full_name
+                curs.execute(
+                    """INSERT INTO katotth(region, region_name, distr, hrom, municip, distr_city, div_num, div_type,
+                                           div_name, div_full_name) 
+                       VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                    (region, region_name, district, hromada, municipal, district_city, division_num,
+                     obj_decode[division_type], division_name, division_full_name))
+            #     TODO: місто з особливим стутусов та без громади, району
+            elif division_type == 'K':
                 if past_region != region:
                     region_name = division_full_name
                 curs.execute(
