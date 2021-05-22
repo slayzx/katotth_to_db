@@ -134,7 +134,7 @@ with conn:
             # If object of administrative division is city with spec status
             elif division_type == 'K':
                 spec_city = True
-                division_full_name = 'місто' + division_name
+                division_full_name = f"місто {division_name}"
                 if past_municipal != municipal:
                     past_municipal = division_name
                 curs.execute(
