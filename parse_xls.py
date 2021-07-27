@@ -41,8 +41,8 @@ obj_to_column = {
 
 past_district, spec_city = 0, False
 
-region, district, district_name, hromada, municipal, district_city, division_num, division_type, division_name, division_full_name = \
-    0, 0, '', 0, 0, 0, 0, '', '', ''
+region, district, district_name, hromada, municipal, district_city, division_num, division_type, division_name, \
+division_full_name = 0, 0, '', 0, 0, 0, 0, '', '', ''
 
 conn = psycopg2.connect(
     host=config['PGSQL_HOST'],
@@ -170,7 +170,7 @@ with conn:
                     """INSERT INTO katotth(region, region_name, distr, distr_name, hrom, hrom_name, municip, div_num, 
                     div_type, div_name, div_full_name) 
                        VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                    (region, region_name, district, district_name, hromada, hromada_name, municipal,division_num,
+                    (region, region_name, district, district_name, hromada, hromada_name, municipal, division_num,
                      obj_decode[division_type], division_name, division_full_name))
             # If object of administrative division is district in city
             elif division_type == 'B':
