@@ -41,7 +41,7 @@ obj_to_column = {
 
 past_district, spec_city = 0, False
 
-region, district, district_name, hromada, municipal, district_city, division_num, division_type, division_name, \
+region, district, district_name, hromada, municipal, district_city, katotth, division_type, division_name, \
 division_full_name = 0, 0, '', 0, 0, 0, 0, '', '', ''
 
 conn = psycopg2.connect(
@@ -61,7 +61,7 @@ create_table = """create table katotth(
                 municip SMALLINT, 
                 municip_name VARCHAR(50),
                 distr_city SMALLINT, 
-                div_num INT, 
+                katotth VARCHAR(20), 
                 div_type VARCHAR(50), 
                 div_name VARCHAR(50), 
                 div_full_name VARCHAR(100) 
@@ -119,17 +119,17 @@ with conn:
             hromada = int(atu_num[6:9])
             municipal = int(atu_num[9:12])
             district_city = int(atu_num[12:14])
-            division_num = int(atu_num[-5:])
+            katotth = atu_num
 
             # If object of administrative division is region or city with special status
             if division_type == 'O':
                 if past_region != region:
                     region_name = division_full_name
                 curs.execute(
-                    """INSERT INTO katotth(region, region_name, distr, hrom, municip, div_num, div_type,
+                    """INSERT INTO katotth(region, region_name, distr, hrom, municip, katotth, div_type,
                                            div_name, div_full_name) 
                        VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                    (region, region_name, district, hromada, municipal, division_num,
+                    (region, region_name, district, hromada, municipal, katotth,
                      obj_decode[division_type], division_name, division_full_name))
             # If object of administrative division is city with spec status
             elif division_type == 'K':
@@ -138,20 +138,20 @@ with conn:
                 if past_municipal != municipal:
                     past_municipal = division_name
                 curs.execute(
-                    """INSERT INTO katotth(region, region_name, municip, div_num, div_type,
+                    """INSERT INTO katotth(region, region_name, municip, katotth, div_type,
                                            div_name, div_full_name)
                        VALUES(%s, %s, %s, %s, %s, %s, %s)""",
-                    (region, region_name, municipal, division_num,
+                    (region, region_name, municipal, katotth,
                      obj_decode[division_type], division_name, division_full_name))
             # If object of administrative division is district
             elif division_type == 'P':
                 if past_district != district:
                     district_name = division_full_name
                 curs.execute(
-                    """INSERT INTO katotth(region, region_name, distr, distr_name, hrom, municip, div_num,
+                    """INSERT INTO katotth(region, region_name, distr, distr_name, hrom, municip, katotth,
                                            div_type, div_name, div_full_name) 
                        VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                    (region, region_name, district, district_name, hromada, municipal, division_num,
+                    (region, region_name, district, district_name, hromada, municipal, katotth,
                      obj_decode[division_type], division_name, division_full_name))
             # If object of administrative division is territorial hromada
             elif division_type == 'H':
@@ -159,36 +159,37 @@ with conn:
                     hromada_name = division_full_name
                 curs.execute(
                     """INSERT INTO katotth(region, region_name, distr, distr_name, hrom, hrom_name, municip, 
-                                           div_num, div_type, div_name, div_full_name) 
+                                           katotth, div_type, div_name, div_full_name) 
                        VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                    (region, region_name, district, district_name, hromada, hromada_name, municipal,
-                     division_num, obj_decode[division_type], division_name, division_full_name))
+                    (region, region_name, district, district_name, hromada, 
+                        hromada_name, municipal,
+                     katotth, obj_decode[division_type], division_name, division_full_name))
             # If object of administrative division is one of the city or or village or special status
             elif division_type in ['M', 'T', 'C', 'X']:
                 past_municipal = division_name
                 curs.execute(
-                    """INSERT INTO katotth(region, region_name, distr, distr_name, hrom, hrom_name, municip, div_num, 
+                    """INSERT INTO katotth(region, region_name, distr, distr_name, hrom, hrom_name, municip, katotth, 
                     div_type, div_name, div_full_name) 
                        VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                    (region, region_name, district, district_name, hromada, hromada_name, municipal, division_num,
+                    (region, region_name, district, district_name, hromada, hromada_name, municipal, katotth,
                      obj_decode[division_type], division_name, division_full_name))
             # If object of administrative division is district in city
             elif division_type == 'B':
                 if spec_city:
                     region_name = past_municipal
                     curs.execute(
-                        """INSERT INTO katotth(region, region_name, municip_name, distr_city, div_num, div_type, 
+                        """INSERT INTO katotth(region, region_name, municip_name, distr_city, katotth, div_type, 
                         div_name, div_full_name) 
                             VALUES(%s, %s, %s, %s, %s, %s, %s, %s)""",
-                        (region, region_name, past_municipal, district_city, division_num, obj_decode[division_type],
+                        (region, region_name, past_municipal, district_city, katotth, obj_decode[division_type],
                          division_name, f"{division_full_name} {past_municipal}"))
                 else:
                     curs.execute(
                         """INSERT INTO katotth(region, region_name, distr, distr_name, hrom, hrom_name, municip, 
-                        municip_name, distr_city, div_num, div_type, div_name, div_full_name) 
+                        municip_name, distr_city, katotth, div_type, div_name, div_full_name) 
                             VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                         (region, region_name, district, district_name, hromada, hromada_name, municipal, past_municipal,
-                         district_city, division_num, obj_decode[division_type], division_name,
+                         district_city, katotth, obj_decode[division_type], division_name,
                          f"{division_full_name} {past_municipal}"))
     conn.commit()
     pass
