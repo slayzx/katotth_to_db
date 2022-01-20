@@ -1,14 +1,16 @@
-from openpyxl import load_workbook
+import re
 import psycopg2
+from icecream import ic
+from openpyxl import load_workbook
 from dotenv import load_dotenv
 from dotenv import dotenv_values
-import re
 
 # TODO: зробити автоматичне визначення розміру таблиці
 load_dotenv()
 
 config = dotenv_values(".env")
 
+katotth_code = re.compile('(UA\\d{17})')
 crimea = re.compile('республіка крим', re.I)
 
 obj_decode = {
@@ -69,30 +71,69 @@ create_table = """create table katotth(
 
 drop_table = """DROP TABLE katotth;"""
 
-workbook = load_workbook("katotth.xlsx")
-
 print('Put the Exel file in root directory, and enter it`s name with document type. For example: katotth.xlsx')
-sheet = workbook.active
-print("Specify the name (in uppercase) of the upper left and lower right cells of the table without extra rows, "
-      "only data.")
-upper_left = input('upper left: ')
-lower_right = input('lower right: ')
 
+workbook = load_workbook("katotth.xlsx")
+sheet = workbook.active
+
+
+def find_upper_left_cell(workbook_sheet):
+    for i in range(1, 8):
+        upper_cell = workbook_sheet.cell(row=i, column=1)
+        if upper_cell.value is None:
+            continue
+        elif re.match('(UA\\d{17})', upper_cell.value):
+            return upper_cell.coordinate
+
+
+def find_lower_right_cell(workbook_sheet):
+    bottom_cell = ''
+    mx_row = workbook_sheet.max_row
+    mx_col = workbook_sheet.max_column
+    # bottom_row = ''
+    # bottom_cell = ''
+    for i in range(mx_row, mx_row - 6, -1):
+        cell_for_row = workbook_sheet.cell(row=i, column=1)
+        if cell_for_row.value is None:
+            continue
+        elif re.match('(UA\\d{17})', cell_for_row.value):
+            bottom_row = cell_for_row.row
+            for j in range(1, mx_col + 2):
+                cell_for_column = workbook_sheet.cell(row=bottom_row, column=j)
+                if cell_for_column.value is None:
+                    break
+                else:
+                    bottom_cell = cell_for_column.coordinate
+                    continue
+            break
+    return bottom_cell
+
+
+upper_left = find_upper_left_cell(sheet)
+lower_right = find_lower_right_cell(sheet)
+"""
 try:
     with conn:
         with conn.cursor() as curs:
             curs.execute(create_table)
-
 except psycopg2.errors.DuplicateTable:
     with conn:
         with conn.cursor() as curs:
             curs.execute(drop_table)
             curs.execute(create_table)
-
 conn.commit()
-
+"""
 with conn:
     with conn.cursor() as curs:
+
+        # max_row = sheet.max_row
+        # max_column = sheet.max_column
+        # lower_rows = sheet.iter_rows(min_row=(max_row - 5), max_row=max_row, max_col=max_column)
+        # for row in lower_rows:
+        #     for cell in row:
+        #         lower_left = cell.coordinate
+        #         if katotth_code.match(cell.value) is None:
+        #             break
 
         # A4 G31761
         for cell in sheet[upper_left:lower_right]:
@@ -161,8 +202,8 @@ with conn:
                     """INSERT INTO katotth(region, region_name, distr, distr_name, hrom, hrom_name, municip, 
                                            katotth, div_type, div_name, div_full_name) 
                        VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                    (region, region_name, district, district_name, hromada, 
-                        hromada_name, municipal,
+                    (region, region_name, district, district_name, hromada,
+                     hromada_name, municipal,
                      katotth, obj_decode[division_type], division_name, division_full_name))
             # If object of administrative division is one of the city or or village or special status
             elif division_type in ['M', 'T', 'C', 'X']:
