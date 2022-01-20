@@ -1,4 +1,4 @@
-psycopg2==2.8.6
-
-openpyxl~=3.0.7
-python-dotenv~=0.17.1
+psycopg2~=2.9.3
+icecream~=2.1.1
+openpyxl~=3.0.9
+python-dotenv~=0.19.2
