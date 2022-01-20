@@ -10,7 +10,6 @@ load_dotenv()
 
 config = dotenv_values(".env")
 
-katotth_code = re.compile('(UA\\d{17})')
 crimea = re.compile('республіка крим', re.I)
 
 obj_decode = {
@@ -111,7 +110,7 @@ def find_lower_right_cell(workbook_sheet):
 
 upper_left = find_upper_left_cell(sheet)
 lower_right = find_lower_right_cell(sheet)
-"""
+
 try:
     with conn:
         with conn.cursor() as curs:
@@ -122,20 +121,10 @@ except psycopg2.errors.DuplicateTable:
             curs.execute(drop_table)
             curs.execute(create_table)
 conn.commit()
-"""
+
+
 with conn:
     with conn.cursor() as curs:
-
-        # max_row = sheet.max_row
-        # max_column = sheet.max_column
-        # lower_rows = sheet.iter_rows(min_row=(max_row - 5), max_row=max_row, max_col=max_column)
-        # for row in lower_rows:
-        #     for cell in row:
-        #         lower_left = cell.coordinate
-        #         if katotth_code.match(cell.value) is None:
-        #             break
-
-        # A4 G31761
         for cell in sheet[upper_left:lower_right]:
             division_type = cell[5].value.strip()
             division_name = cell[6].value.strip()
