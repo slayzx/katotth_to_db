@@ -1,18 +1,17 @@
-import re
-import psycopg2
+import re, os
+import psycopg2, psycopg2.errors
 from icecream import ic
 from openpyxl import load_workbook
 from dotenv import load_dotenv
 from dotenv import dotenv_values
 
-# TODO: зробити автоматичне визначення розміру таблиці
-load_dotenv()
-
 config = dotenv_values(".env")
 
-crimea = re.compile('республіка крим', re.I)
+load_dotenv()
 
-obj_decode = {
+# crimea = re.compile('республіка крим', re.I)
+
+object_decode = {
     'O': 'область',
     'K': 'місто зі спеціальним статусом',  # city with special status
     'P': 'район',
@@ -23,7 +22,13 @@ obj_decode = {
     'X': 'селище',
     'B': 'район у місті'
 }
-obj_to_column = {
+hromada_type_decode = {
+    'M': 'міська',
+    'T': 'селищна',
+    'X': 'селищна',
+    'C': 'сільська',
+}
+object_to_column = {
     'O': 0,
     'K': 0,  # city with special status
     'P': 1,
@@ -34,6 +39,9 @@ obj_to_column = {
     'X': 3,
     'B': 4
 }
+
+'''Columns: A - region, B - district, C - hromada, D - communities, 
+E - districts in cities, F - object category, G - name'''
 
 # variables for database: reg - region, dist - district, hrom - hromada, munic - municipalities,
 #  division_name - unique number of administrative division object, div_type - type of division object
@@ -51,6 +59,8 @@ conn = psycopg2.connect(
     user=config['PGSQL_DB_USER'],
     password='PGSQL_DB_PASSWD')
 
+drop_table = """DROP TABLE katotth;"""
+
 create_table = """create table katotth( 
                 id SERIAL PRIMARY KEY, 
                 region SMALLINT, 
@@ -58,7 +68,7 @@ create_table = """create table katotth(
                 distr SMALLINT, 
                 distr_name VARCHAR(50),
                 hrom SMALLINT, 
-                hrom_name VARCHAR(50),
+                hrom_name VARCHAR(100),
                 municip SMALLINT, 
                 municip_name VARCHAR(50),
                 distr_city SMALLINT, 
@@ -68,12 +78,13 @@ create_table = """create table katotth(
                 div_full_name VARCHAR(100) 
                 );"""
 
-drop_table = """DROP TABLE katotth;"""
 
-print('Put the Exel file in root directory, and enter it`s name with document type. For example: katotth.xlsx')
-
-workbook = load_workbook("katotth.xlsx")
-sheet = workbook.active
+def exel_files_list() -> list:
+    exel_files = []
+    for f_name in os.listdir('./'):
+        if f_name.endswith('.xlsx'):
+            exel_files.append(f_name)
+    return exel_files
 
 
 def find_upper_left_cell(workbook_sheet):
@@ -108,9 +119,6 @@ def find_lower_right_cell(workbook_sheet):
     return bottom_cell
 
 
-upper_left = find_upper_left_cell(sheet)
-lower_right = find_lower_right_cell(sheet)
-
 try:
     with conn:
         with conn.cursor() as curs:
@@ -122,27 +130,62 @@ except psycopg2.errors.DuplicateTable:
             curs.execute(create_table)
 conn.commit()
 
+files_list = exel_files_list()
+files = len(files_list)
+
+if not files:
+    print('Put the Exel file in root directory')
+    answer = input("If you have put the file enter 'y' and press enter key")
+    while answer not in ['y', 'n']:
+        answer = input('.. so we continue? y/n')
+    if answer == 'n':
+        print('See you soon')
+        exit()
+    files_list = exel_files_list()
+    files = len(files_list)
+elif files == 1:
+    workbook = load_workbook(files_list[0])
+    print(f'Завантажено файл {files_list[0]}')
+elif files > 1:
+    print(f'В папці більше одного Exel файлу, виберіть номер, та введіть його:')
+    for f in range(1, files + 1):
+        print(f'{f} : {files_list[f - 1]}')
+    choose = int(input()) - 1
+    workbook = load_workbook(files_list[choose])
+    print(f'Завантажено файл {files_list[choose]}')
+
+sheet = workbook.active
 
 with conn:
     with conn.cursor() as curs:
-        for cell in sheet[upper_left:lower_right]:
-            division_type = cell[5].value.strip()
-            division_name = cell[6].value.strip()
+        upper_left = find_upper_left_cell(sheet)
+        lower_right = find_lower_right_cell(sheet)
+
+        for row in sheet[upper_left:lower_right]:
+            division_type = row[5].value.strip()
+            division_name = row[6].value.strip()
             if division_type == 'O':  # region
-                if crimea.search(division_name):
+                if re.search('республіка крим', division_name, re.I):
                     division_full_name = division_name
                 else:
-                    division_full_name = f"{division_name} {obj_decode[division_type]}"
-            elif division_type in ['P', 'H']:  # district and hromada
-                division_full_name = f"{division_name} {obj_decode[division_type]}"
+                    division_full_name = f"{division_name} {object_decode[division_type]}"
+                print(f"Обробляється {division_full_name}")
+            elif division_type in ['P']:  # district
+                division_full_name = f"{division_name} {object_decode[division_type]}"
+            elif division_type in ['H']:  # hromada
+                next_row = row[5].row + 1
+                next_row_cell = sheet.cell(row=next_row, column=6)
+                hromada_type = next_row_cell.value
+                division_full_name = f"{division_name} {hromada_type_decode[hromada_type]} {object_decode[division_type]}"
+                pass
             elif division_type == 'B':  # district in city
-                division_full_name = f"{division_name} {obj_decode[division_type]}"
+                division_full_name = f"{division_name} {object_decode[division_type]}"
             else:
-                division_full_name = f"{obj_decode[division_type]} {division_name}"
+                division_full_name = f"{object_decode[division_type]} {division_name}"
 
             past_region, past_district, past_hromada, = region, district, hromada
 
-            atu_num = cell[obj_to_column[division_type]].value
+            atu_num = row[object_to_column[division_type]].value
 
             region = int(atu_num[2:4])
             district = int(atu_num[4:6])
@@ -160,7 +203,7 @@ with conn:
                                            div_name, div_full_name) 
                        VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                     (region, region_name, district, hromada, municipal, katotth,
-                     obj_decode[division_type], division_name, division_full_name))
+                     object_decode[division_type], division_name, division_full_name))
             # If object of administrative division is city with spec status
             elif division_type == 'K':
                 spec_city = True
@@ -172,7 +215,7 @@ with conn:
                                            div_name, div_full_name)
                        VALUES(%s, %s, %s, %s, %s, %s, %s)""",
                     (region, region_name, municipal, katotth,
-                     obj_decode[division_type], division_name, division_full_name))
+                     object_decode[division_type], division_name, division_full_name))
             # If object of administrative division is district
             elif division_type == 'P':
                 if past_district != district:
@@ -182,7 +225,7 @@ with conn:
                                            div_type, div_name, div_full_name) 
                        VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                     (region, region_name, district, district_name, hromada, municipal, katotth,
-                     obj_decode[division_type], division_name, division_full_name))
+                     object_decode[division_type], division_name, division_full_name))
             # If object of administrative division is territorial hromada
             elif division_type == 'H':
                 if past_hromada != hromada:
@@ -193,7 +236,7 @@ with conn:
                        VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                     (region, region_name, district, district_name, hromada,
                      hromada_name, municipal,
-                     katotth, obj_decode[division_type], division_name, division_full_name))
+                     katotth, object_decode[division_type], division_name, division_full_name))
             # If object of administrative division is one of the city or or village or special status
             elif division_type in ['M', 'T', 'C', 'X']:
                 past_municipal = division_name
@@ -202,7 +245,7 @@ with conn:
                     div_type, div_name, div_full_name) 
                        VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                     (region, region_name, district, district_name, hromada, hromada_name, municipal, katotth,
-                     obj_decode[division_type], division_name, division_full_name))
+                     object_decode[division_type], division_name, division_full_name))
             # If object of administrative division is district in city
             elif division_type == 'B':
                 if spec_city:
@@ -211,7 +254,7 @@ with conn:
                         """INSERT INTO katotth(region, region_name, municip_name, distr_city, katotth, div_type, 
                         div_name, div_full_name) 
                             VALUES(%s, %s, %s, %s, %s, %s, %s, %s)""",
-                        (region, region_name, past_municipal, district_city, katotth, obj_decode[division_type],
+                        (region, region_name, past_municipal, district_city, katotth, object_decode[division_type],
                          division_name, f"{division_full_name} {past_municipal}"))
                 else:
                     curs.execute(
@@ -219,12 +262,9 @@ with conn:
                         municip_name, distr_city, katotth, div_type, div_name, div_full_name) 
                             VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                         (region, region_name, district, district_name, hromada, hromada_name, municipal, past_municipal,
-                         district_city, katotth, obj_decode[division_type], division_name,
+                         district_city, katotth, object_decode[division_type], division_name,
                          f"{division_full_name} {past_municipal}"))
     conn.commit()
     pass
 
 workbook.close()
-
-'''Columns: A - region, B - district, C - hromada, D - communities, 
-E - districts in cities, F - object category, G - name'''
