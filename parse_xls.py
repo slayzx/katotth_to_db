@@ -130,10 +130,10 @@ except psycopg2.errors.DuplicateTable:
             curs.execute(create_table)
 conn.commit()
 
-files_list = exel_files_list()
-files = len(files_list)
+files_list = sorted(exel_files_list())
+files_count = len(files_list)
 
-if not files:
+if not files_count:
     print('Put the Exel file in root directory')
     answer = input("If you have put the file enter 'y' and press enter key")
     while answer not in ['y', 'n']:
@@ -141,25 +141,41 @@ if not files:
     if answer == 'n':
         print('See you soon')
         exit()
-    files_list = exel_files_list()
-    files = len(files_list)
-elif files == 1:
-    workbook = load_workbook(files_list[0])
-    print(f'Завантажено файл {files_list[0]}')
-elif files > 1:
+    files_list = sorted(exel_files_list())
+    files_count = len(files_list)
+elif files_count == 1:
+    file = files_list[0]
+    print(f"Завантажується файл '{file}'...")
+    workbook = load_workbook(file)
+    print(f"Завантажено файл '{file}'")
+elif files_count > 1:
     print(f'В папці більше одного Exel файлу, виберіть номер, та введіть його:')
-    for f in range(1, files + 1):
+    for f in range(1, files_count + 1):
         print(f'{f} : {files_list[f - 1]}')
     choose = int(input()) - 1
-    workbook = load_workbook(files_list[choose])
-    print(f'Завантажено файл {files_list[choose]}')
+    file = files_list[choose]
+    print(f"Завантажується файл '{file}'...")
+    workbook = load_workbook(file)
+    print(f"Завантажено файл '{file}'")
 
 sheet = workbook.active
 
+upper_left = find_upper_left_cell(sheet)
+lower_right = find_lower_right_cell(sheet)
+print('Перевірка літер типу адмін одиниці...')
+types_list = object_decode.keys()
+errors_in_types = False
+for i in range(int(upper_left[1:]), int(lower_right[1:]) + 1):
+    c = sheet.cell(row=i, column=6)
+    if c.value not in types_list:
+        errors_in_types = True
+        print('Тип має невірне значення: ', c.value, ' -> ', c.coordinate)
+if errors_in_types:
+    print(f"Виправте вказані вище помилки у файлі '{file}' , та спробуйте знову")
+    exit()
+
 with conn:
     with conn.cursor() as curs:
-        upper_left = find_upper_left_cell(sheet)
-        lower_right = find_lower_right_cell(sheet)
 
         for row in sheet[upper_left:lower_right]:
             division_type = row[5].value.strip()
