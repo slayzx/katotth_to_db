@@ -1,9 +1,8 @@
 import re, os
 import psycopg2, psycopg2.errors
-from icecream import ic
+# from icecream import ic
 from openpyxl import load_workbook
-from dotenv import load_dotenv
-from dotenv import dotenv_values
+from dotenv import load_dotenv, dotenv_values
 
 config = dotenv_values(".env")
 
