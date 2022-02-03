@@ -24,7 +24,7 @@ object_decode = {
 hromada_type_decode = {
     'M': 'міська',
     'T': 'селищна',
-    'X': 'селищна',
+    'X': 'сільська',
     'C': 'сільська',
 }
 object_to_column = {
